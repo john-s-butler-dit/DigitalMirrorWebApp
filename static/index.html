@@ -249,8 +249,8 @@ async function processVideo() {
 
   let res;
   try {
-   res = await fetch(`https://digitalmirrorwebapp-production.up.railway.app/process?n_components=${n}&skip_frames=${skip}`, ...)
-//   res = await fetch(`https://digitalmirrorwebapp-production.up.railway.app/process?n_components=${n}&skip_frames=${skip}`, {method:'POST', body:fd});
+//   res = await fetch(`https://digitalmirrorwebapp-production.up.railway.app/process?n_components=${n}&skip_frames=${skip}`, ...)
+   res = await fetch(`https://digitalmirrorwebapp-production.up.railway.app/process?n_components=${n}&skip_frames=${skip}`, {method:'POST', body:fd});
     } catch(e) {
     setStatus('❌ Could not reach server. Is app.py running?', 0); return;
   }
