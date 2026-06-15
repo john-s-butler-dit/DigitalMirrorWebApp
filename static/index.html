@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Digital Mirror App</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f0f13; color: #e0e0e0; min-height: 100vh; }
+
+  header { background: #1a1a2e; padding: 1.2rem 2rem; border-bottom: 1px solid #2a2a4a; }
+  header h1 { font-size: 1.5rem; color: #a78bfa; }
+  header p  { font-size: 0.85rem; color: #888; margin-top: 0.2rem; }
+
+  main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+
+  .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card h2 { font-size: 1rem; color: #a78bfa; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .tab { padding: 0.5rem 1.2rem; border-radius: 8px; border: 1px solid #2a2a4a; background: transparent;
+         color: #aaa; cursor: pointer; font-size: 0.9rem; transition: all .2s; }
+  .tab.active { background: #a78bfa; color: #fff; border-color: #a78bfa; }
+
+  /* Record panel */
+  #recordPanel, #uploadPanel { display: none; }
+  #recordPanel.active, #uploadPanel.active { display: block; }
+
+  video#preview { width: 100%; max-height: 280px; background: #000; border-radius: 8px; margin-bottom: 0.8rem; }
+
+  .face-prompt { text-align: center; font-size: 1.1rem; color: #f0c040; min-height: 1.8rem; margin-bottom: 0.8rem; font-weight: 600; }
+
+  .btn { padding: 0.6rem 1.4rem; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer; transition: all .2s; }
+  .btn-primary { background: #a78bfa; color: #fff; }
+  .btn-primary:hover { background: #7c3aed; }
+  .btn-danger  { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .row { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+
+  /* Upload */
+  .drop-zone { border: 2px dashed #2a2a4a; border-radius: 10px; padding: 2.5rem; text-align: center;
+               color: #666; transition: border-color .2s; cursor: pointer; }
+  .drop-zone:hover, .drop-zone.over { border-color: #a78bfa; color: #a78bfa; }
+  .drop-zone input { display: none; }
+
+  /* Settings */
+  label { font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 0.3rem; }
+  input[type=range] { width: 100%; accent-color: #a78bfa; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+  /* Progress */
+  #status { margin: 1rem 0; font-size: 0.9rem; color: #aaa; min-height: 1.2rem; }
+  .progress-bar { height: 6px; background: #2a2a4a; border-radius: 3px; overflow: hidden; display: none; }
+  .progress-fill { height: 100%; background: #a78bfa; width: 0%; transition: width .3s; }
+
+  /* Results */
+  #results { display: none; }
+  .stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .stat { background: #12122a; border-radius: 8px; padding: 0.8rem 1.2rem; text-align: center; }
+  .stat .val { font-size: 1.4rem; color: #a78bfa; font-weight: 700; }
+  .stat .lbl { font-size: 0.75rem; color: #888; margin-top: 0.2rem; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+  .ef-card { background: #12122a; border-radius: 10px; overflow: hidden; border: 1px solid #2a2a4a; }
+  .ef-card img { width: 100%; display: block; }
+  .ef-card .ef-title { font-size: 0.75rem; text-align: center; padding: 0.4rem; color: #aaa; }
+  .ef-card.mean-card { border-color: #a78bfa; }
+  .ef-card.mean-card .ef-title { color: #a78bfa; font-weight: 600; }
+
+  /* Variance chart */
+  .var-bar-wrap { margin-top: 1.2rem; }
+  .var-bar-wrap h3 { font-size: 0.85rem; color: #aaa; margin-bottom: 0.6rem; }
+  .var-bars { display: flex; align-items: flex-end; gap: 3px; height: 60px; }
+  .var-bar { flex: 1; background: #a78bfa; border-radius: 3px 3px 0 0; min-width: 8px;
+             transition: opacity .2s; cursor: default; }
+  .var-bar:hover { opacity: 0.75; }
+
+  #dlBtn { margin-top: 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1> Digital Mirror</h1>
+  <p>AI and the Evolution of Portraiture</p>
+</header>
+
+<main>
+
+  <!-- Input card -->
+  <div class="card">
+    <h2>1 · Video Input</h2>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('record')">📷 Record</button>
+      <button class="tab"        onclick="switchTab('upload')">📁 Upload</button>
+    </div>
+
+    <!-- Record panel -->
+    <div id="recordPanel" class="active">
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="face-prompt" id="facePrompt">Press Start to begin</div>
+      <div class="row">
+        <button class="btn btn-primary" id="startBtn" onclick="startRecording()">▶ Start Recording</button>
+        <span id="timerDisplay" style="color:#a78bfa;font-size:1rem;"></span>
+      </div>
+    </div>
+
+    <!-- Upload panel -->
+    <div id="uploadPanel">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="video/*" onchange="handleFile(this.files[0])"/>
+        <div>🎬 Click or drag a video file here</div>
+        <div style="font-size:0.8rem;margin-top:0.4rem;">MP4, MOV, AVI supported</div>
+      </div>
+      <div id="uploadedName" style="margin-top:0.6rem;font-size:0.85rem;color:#a78bfa;"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <h2>2 · Settings</h2>
+    <div class="settings-grid">
+      <div>
+        <label>Eigenfaces to compute: <strong id="nVal">10</strong></label>
+        <input type="range" id="nComponents" min="3" max="40" value="10"
+               oninput="document.getElementById('nVal').textContent=this.value"/>
+      </div>
+      <div>
+        <label>Skip initial frames: <strong id="skipVal">15</strong></label>
+        <input type="range" id="skipFrames" min="0" max="60" value="15"
+               oninput="document.getElementById('skipVal').textContent=this.value"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Process -->
+  <div class="card">
+    <h2>3 · Process</h2>
+    <button class="btn btn-primary" id="processBtn" onclick="processVideo()" disabled>⚙ Compute Eigenfaces</button>
+    <div id="status"></div>
+    <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="results">
+    <h2>4 · Results</h2>
+    <div class="stats" id="statsRow"></div>
+    <div class="gallery" id="gallery"></div>
+    <div class="var-bar-wrap">
+      <h3>Variance explained per eigenface (%)</h3>
+      <div class="var-bars" id="varBars"></div>
+    </div>
+    <button class="btn btn-primary" id="dlBtn" onclick="downloadResults()">⬇ Download Gallery PNG</button>
+  </div>
+
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let videoBlob = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let timerInterval = null;
+let faceInterval = null;
+let resultImages = [];
+
+const FACES = ["Happy 😊","Angry 😠","Confused 🤔","Puppy Dog 🥺","Weirded Out 😳",
+               "Blank 😐","Delighted 😁","Sick 🤢","Shocked 😲","Sad 😢","Happy Again 😄"];
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0)===(tab==='record')));
+  document.getElementById('recordPanel').classList.toggle('active', tab==='record');
+  document.getElementById('uploadPanel').classList.toggle('active', tab==='upload');
+}
+
+// ── Recording ──────────────────────────────────────────────────────────────
+const RECORD_SECS = 12;
+
+async function startRecording() {
+  const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+  document.getElementById('preview').srcObject = stream;
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream, {mimeType:'video/webm'});
+  mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    videoBlob = new Blob(recordedChunks, {type:'video/webm'});
+    document.getElementById('processBtn').disabled = false;
+    document.getElementById('facePrompt').textContent = '✅ Recording saved — press Compute!';
+    document.getElementById('timerDisplay').textContent = '';
+    document.getElementById('startBtn').disabled = false;
+    stream.getTracks().forEach(t=>t.stop());
+  };
+  mediaRecorder.start();
+  document.getElementById('startBtn').disabled = true;
+
+  // Countdown timer
+  let remaining = RECORD_SECS;
+  document.getElementById('timerDisplay').textContent = `${remaining}s remaining`;
+  timerInterval = setInterval(()=>{
+    remaining--;
+    document.getElementById('timerDisplay').textContent = `${remaining}s remaining`;
+    if(remaining <= 0) clearInterval(timerInterval);
+  }, 1000);
+
+  // Face prompts — change every second
+  let fi = 0;
+  document.getElementById('facePrompt').textContent = `Make a ${FACES[fi]} face`;
+  faceInterval = setInterval(()=>{
+    fi = (fi+1) % FACES.length;
+    document.getElementById('facePrompt').textContent = `Make a ${FACES[fi]} face`;
+  }, 1000);
+
+  // Auto-stop after 12 seconds
+  setTimeout(() => {
+    clearInterval(timerInterval);
+    clearInterval(faceInterval);
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  }, RECORD_SECS * 1000);
+}
+
+// ── Upload ─────────────────────────────────────────────────────────────────
+function handleFile(file) {
+  if(!file) return;
+  videoBlob = file;
+  document.getElementById('uploadedName').textContent = '✅ ' + file.name;
+  document.getElementById('processBtn').disabled = false;
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+
+// ── Process ────────────────────────────────────────────────────────────────
+async function processVideo() {
+  if(!videoBlob) return;
+  const n = document.getElementById('nComponents').value;
+  const skip = document.getElementById('skipFrames').value;
+
+  setStatus('Uploading video…', 20);
+
+  const fd = new FormData();
+  fd.append('file', videoBlob, 'video.webm');
+
+  let res;
+  try {
+    res = await fetch(`/process?n_components=${n}&skip_frames=${skip}`, {method:'POST', body:fd});
+  } catch(e) {
+    setStatus('❌ Could not reach server. Is app.py running?', 0); return;
+  }
+
+  setStatus('Computing PCA…', 60);
+  const data = await res.json();
+
+  if(data.error) { setStatus('❌ '+data.error, 0); return; }
+
+  setStatus('Rendering…', 90);
+  resultImages = data.images;
+  renderResults(data);
+  setStatus('Done ✅', 100);
+}
+
+function setStatus(msg, pct) {
+  document.getElementById('status').textContent = msg;
+  const bar = document.getElementById('progressBar');
+  bar.style.display = 'block';
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderResults({images, variance, n_frames, frame_size}) {
+  document.getElementById('results').style.display = 'block';
+
+  // Stats
+  const totalVar = variance.reduce((a,b)=>a+b,0).toFixed(1);
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat"><div class="val">${n_frames}</div><div class="lbl">Frames used</div></div>
+    <div class="stat"><div class="val">${frame_size[1]}×${frame_size[0]}</div><div class="lbl">Frame size</div></div>
+    <div class="stat"><div class="val">${images.length-1}</div><div class="lbl">Eigenfaces</div></div>
+    <div class="stat"><div class="val">${totalVar}%</div><div class="lbl">Variance explained</div></div>
+  `;
+
+  // Gallery
+  const g = document.getElementById('gallery');
+  g.innerHTML = '';
+  images.forEach((img,i) => {
+    const div = document.createElement('div');
+    div.className = 'ef-card' + (i===0?' mean-card':'');
+    div.innerHTML = `<img src="data:image/png;base64,${img.data}" alt="${img.title}"/>
+                     <div class="ef-title">${img.title}</div>`;
+    g.appendChild(div);
+  });
+
+  // Variance bars
+  const vb = document.getElementById('varBars');
+  vb.innerHTML = '';
+  const maxV = Math.max(...variance);
+  variance.forEach(v => {
+    const bar = document.createElement('div');
+    bar.className = 'var-bar';
+    bar.style.height = (v/maxV*100)+'%';
+    bar.title = v.toFixed(2)+'%';
+    vb.appendChild(bar);
+  });
+}
+
+// ── Download ───────────────────────────────────────────────────────────────
+function downloadResults() {
+  if(!resultImages.length) return;
+  const cols = Math.min(6, resultImages.length);
+  const rows = Math.ceil(resultImages.length / cols);
+  const W = 140, H = 170, PAD = 8, TITLE_H = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width  = cols*(W+PAD)+PAD;
+  canvas.height = rows*(H+PAD)+PAD;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0f0f13';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  let loaded = 0;
+  resultImages.forEach((imgData,i) => {
+    const img = new Image();
+    img.onload = () => {
+      const col = i % cols, row = Math.floor(i/cols);
+      const x = PAD + col*(W+PAD), y = PAD + row*(H+PAD);
+      ctx.drawImage(img, x, y, W, H-TITLE_H);
+      ctx.fillStyle = i===0?'#a78bfa':'#aaa';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(imgData.title, x+W/2, y+H-4);
+      if(++loaded===resultImages.length) {
+        const a = document.createElement('a');
+        a.download = 'eigenfaces.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      }
+    };
+    img.src = 'data:image/png;base64,'+imgData.data;
+  });
+}
+</script>
+</body>
+</html>
