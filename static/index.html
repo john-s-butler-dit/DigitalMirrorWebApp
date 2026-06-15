@@ -249,8 +249,9 @@ async function processVideo() {
 
   let res;
   try {
-   res = await fetch(`https://yourapp.railway.app/process?n_components=${n}&skip_frames=${skip}`, ...)
-  } catch(e) {
+   digitalmirrorwebapp-production.up.railway.app
+  res = await fetch(`/process?n_components=${n}&skip_frames=${skip}`, {method:'POST', body:fd});
+    } catch(e) {
     setStatus('❌ Could not reach server. Is app.py running?', 0); return;
   }
 
